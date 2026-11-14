@@ -1,6 +1,6 @@
 <!-- ANIMATED HERO BANNER -->
 <div align="center">
-<img src="https://capsule-render.vercel.app/api?type=waving&height=300&color=gradient&section=header&reversal=false&text=PreFlight+AI&textBg=false&fontSize=70&fontAlign=50&fontAlignY=50&animation=twinkling&rotate=0&strokeWidth=0&descSize=20&descAlign=50&descAlignY=60"  alt="PreFlight AI Header" />
+<img src="https://capsule-render.vercel.app/api?type=waving&height=300&color=0:facc15,50:d4af37,100:000000&fontColor=ffffff&&section=header&reversal=false&text=PreFlight+AI&textBg=false&fontSize=70&fontAlign=50&fontAlignY=50&animation=twinkling&rotate=0&strokeWidth=0&descSize=20&descAlign=50&descAlignY=60"  alt="PreFlight AI Header" />
 
 <!-- ANIMATED TYPING SUBTITLE -->
 <a href="https://github.com/Dera-Unegbu/preflight-ai-app">
