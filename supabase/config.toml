@@ -1,0 +1,2 @@
+[functions.site-intel]
+verify_jwt = false
