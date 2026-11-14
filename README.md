@@ -1,7 +1,6 @@
 <!-- ANIMATED HERO BANNER -->
 <div align="center">
-
-<img src="https://capsule-render.vercel.app/api?type=waving&color=0:090D16,45:1E1B4B,100:4F46E5&height=230&section=header&text=PreFlight%20AI&fontSize=68&fontColor=FFFFFF&animation=fadeIn&fontAlignY=38&desc=Autonomous%20Pre-Sales%20%26%20Enterprise%20AI%20Prototype%20Engine&descAlignY=60&descSize=17" width="100%" alt="PreFlight AI Header" />
+<img src="https://capsule-render.vercel.app/api?type=waving&height=300&color=gradient&section=header&reversal=false&text=PreFlight+AI&textBg=false&fontSize=70&fontAlign=50&fontAlignY=50&animation=twinkling&rotate=0&strokeWidth=0&descSize=20&descAlign=50&descAlignY=60"  alt="PreFlight AI Header" />
 
 <!-- ANIMATED TYPING SUBTITLE -->
 <a href="https://github.com/Dera-Unegbu/preflight-ai-app">
@@ -102,32 +101,3 @@ flowchart LR
     G --> H["🖥️ Brand-Themed Microsite"]
     H --> I["🎙️ Groq & Web Speech Sandbox"]
     H --> J["📊 CFO Savings & Revenue Model"]
-🔬 Engineering Deep-Dives
-Zero-Hallucination Confidence Gate: Every sandbox response returns the exact scraped URL snippet relied upon alongside a confidence score. Queries outside scraped policies trigger a Warm Human Agent Handoff Card with an auto-generated context summary.
-
-Vertical Mock API Tools: During ingestion, the synthesis agent generates 3 industry-specific JSON function schemas (e.g., check_shipment_status(tracking_id) for logistics or verify_policy_coverage(policy_no) for insurance) so the bot executes real-time actions inside the Inspector Drawer.
-
-Live Buyer Intent Telemetry: Tracks active dwell time, ROI slider adjustments, workflow clicks, and test messages via Supabase Realtime (demo_events), turning every shared demo link into a live buyer-intent signal.
-
-Pillar 1 — Direct OpEx Reduction: Compares current annual human support spend against blended autonomous resolution costs plus faster AI-assisted human escalations, outputting net savings, reclaimed agent hours, and payback period in days.
-
-Pillar 2 — Conversational Revenue Engine: Quantifies incremental top-line growth from 24/7 after-hours lead recovery, goal-based proactive cross-sell/upsell, and First-Contact Resolution churn reduction.
-
-Executive Export: Generates a clean, downloadable business-case brief pre-loaded with the buyer's exact assumptions.
-
-Bash
-# 1. Clone & install dependencies
-git clone [https://github.com/Dera-Unegbu/preflight-ai-app.git](https://github.com/Dera-Unegbu/preflight-ai-app.git)
-cd preflight-ai-app
-npm install
-
-# 2. Configure frontend environment
-cp .env.example .env
-# Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
-
-# 3. Set server-side Edge Function secrets
-npx supabase secrets set TAVILY_API_KEY="tvly-..." GEMINI_API_KEY="AIza..." GROQ_API_KEY="gsk_..."
-npx supabase functions deploy site-intel
-
-# 4. Start development server
-npm run dev
