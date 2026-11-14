@@ -66,7 +66,7 @@ export default function Landing({ onStart, recent, onOpenRecent, busy }: Props) 
             Pre-Sales &amp; Discovery Engine
           </span>
         </div>
-        <span className="hidden text-sm text-neutral-500 md:inline">Internal GTM tool · Yellow.ai Motion</span>
+        <span className="hidden text-sm text-neutral-500 md:inline">Internal GTM tool</span>
       </header>
 
       <main className="relative mx-auto max-w-6xl px-6 pb-24">
