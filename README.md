@@ -1,63 +1,133 @@
+<!-- ANIMATED HERO BANNER -->
 <div align="center">
 
-# ✈️ PreFlight AI
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:090D16,45:1E1B4B,100:4F46E5&height=230&section=header&text=PreFlight%20AI&fontSize=68&fontColor=FFFFFF&animation=fadeIn&fontAlignY=38&desc=Autonomous%20Pre-Sales%20%26%20Enterprise%20AI%20Prototype%20Engine&descAlignY=60&descSize=17" width="100%" alt="PreFlight AI Header" />
 
-**Drop in any company’s URL and generate a live, brand-matched Voice & Chat AI prototype, a Top-10 automation blueprint, and a CFO-ready contact-center ROI case in 60 seconds.**
+<!-- ANIMATED TYPING SUBTITLE -->
+<a href="https://github.com/Dera-Unegbu/preflight-ai-app">
+  <img src="https://readme-typing-svg.demolab.com?font=Fira+Code&weight=600&size=17&duration=2800&pause=900&color=818CF8&center=true&vCenter=true&multiline=true&repeat=true&width=820&height=68&lines=Drop+any+company+URL+%E2%86%92+Live+Brand-Matched+Voice+%26+Chat+AI+in+60s.;Top-10+Automation+Blueprint+%2B+CFO-Ready+Savings+%26+Revenue+Model." alt="Typing SVG" />
+</a>
 
-[![Next.js](https://img.shields.io/badge/Frontend-Next.js%20%7C%20TypeScript-000000?style=flat-square&logo=next.js)](https://nextjs.org/)
-[![FastAPI](https://img.shields.io/badge/Backend-Python%20%7C%20FastAPI-009688?style=flat-square&logo=fastapi)](https://fastapi.tiangolo.com/)
-[![PostgreSQL](https://img.shields.io/badge/Vector%20Store-PostgreSQL%20%2B%20pgvector-336791?style=flat-square&logo=postgresql)](https://github.com/pgvector/pgvector)
-[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg?style=flat-square)](LICENSE)
+<br />
+
+<!-- TECH STACK PILLS -->
+[![React](https://img.shields.io/badge/React_18-TypeScript-0F172A?style=for-the-badge&logo=react&logoColor=38BDF8)](https://react.dev/)
+[![Vite](https://img.shields.io/badge/Vite-Tailwind_CSS-0F172A?style=for-the-badge&logo=vite&logoColor=A78BFA)](https://vitejs.dev/)
+[![Supabase](https://img.shields.io/badge/Supabase-Edge_Functions_%2B_Realtime-0F172A?style=for-the-badge&logo=supabase&logoColor=34D399)](https://supabase.com/)
+[![Gemini](https://img.shields.io/badge/Gemini_Flash-Structured_Synthesis-0F172A?style=for-the-badge&logo=google&logoColor=60A5FA)](https://ai.google.dev/)
+[![Groq](https://img.shields.io/badge/Groq-Sub--500ms_Inference-0F172A?style=for-the-badge&logo=lightning&logoColor=FBBF24)](https://groq.com/)
+
+<br />
+
+<!-- CUSTOM ANIMATED NEURAL HUD SVG -->
+<img src="./assets/preflight-neural-radar.svg" width="100%" alt="PreFlight AI Live Ingestion & Synthesis Engine" />
 
 </div>
-..
+
 ---
 
-## 🎯 Why PreFlight AI?
+## ⚡ Why PreFlight AI Wins
 
 Enterprise conversational AI deals rarely stall because the underlying LLM isn't smart enough—**they stall in Pre-Sales and Discovery.**
 
-Today, when a Solutions Engineer (SE) or Account Executive (AE) pitches a large enterprise or BPO operator, it takes **2 to 3 weeks of manual effort** to audit their help center, map high-volume intents, calculate call-deflection ROI, and build a custom proof-of-concept demo.
-
-**PreFlight AI compresses a 3-week pre-sales cycle into a 60-second automated pipeline**—giving outbound reps an interactive, prospect-branded demo to attach to cold outreach and eliminating manual POC setup for Solutions Engineering.
-
----
-
-## ⚡ The 60-Second Experience
-
-### 1. Single-Input Trigger
-Enter any target company’s domain (e.g., `noon.com`, `aramex.com`, or a regional bank/telecom) and select target channels (**Web Chat**, **WhatsApp**, or **Voice / IVR**).
-
-### 2. Live Streaming Ingestion Pipeline (30–60s)
-A real-time Server-Sent Events (SSE) progress feed shows the system:
-- Crawling public help centers, sitemaps, `/faq`, `/returns`, and `/pricing` pages
-- Extracting brand assets (logo, favicon, and dominant CSS hex colors)
-- Mining public customer reviews for support friction
-- Indexing policies and generating mock industry API tools
-
-### 3. Shareable Prospect Microsite (`app.preflight.ai/d/<company>`)
-Outputs an executive-ready workspace with **four interactive modules**:
-
-| Module | What It Delivers | Why Buyers Care |
-| :--- | :--- | :--- |
-| **1. Automation Opportunity Matrix** | Ranks the prospect's **Top 10 Automation Workflows** by estimated ticket volume, complexity (`RAG-Only` vs. `API Tool-Call`), and optimal channel (`Voice` vs. `WhatsApp`). | Proves deep domain understanding immediately without a 2-hour discovery call. |
-| **2. Live Grounded Voice & Chat Sandbox** | A working, brand-themed AI agent pre-trained on actual policies, complete with **source citations**, **live latency inspector**, and **simulated backend actions** (e.g., Order Tracking, Refund Eligibility). | Buyers don't want slides—they want to test how an agent handles their toughest customer questions on the spot. |
-| **3. External Friction Audit** | Scrapes public reviews (Trustpilot, App Store, Reddit) to surface real support complaints (e.g., *"40-minute hold times for flight rebooking"*) paired with an instant AI fix. | Creates immediate urgency for a VP of CX or BPO leader. |
-| **4. Interactive BPO / Deflection ROI Model** | Editable sliders for monthly call/chat volume, Average Handle Time (AHT), and human vs. AI resolution cost—generating an exportable business case. | Gives internal champions the exact numbers required for CFO budget sign-off. |
+<table>
+  <tr>
+    <th width="50%">🐢 Traditional Enterprise Pre-Sales (2–3 Weeks)</th>
+    <th width="50%">🚀 PreFlight AI Pipeline (60 Seconds)</th>
+  </tr>
+  <tr>
+    <td>
+      • Manual help-center & FAQ audits by Solutions Engineers<br />
+      • Generic slide decks with zero prospect branding<br />
+      • Static spreadsheets for contact-center ROI estimates<br />
+      • Buyers wait weeks before testing a live Voice/Chat agent
+    </td>
+    <td>
+      • <b>Autonomous Policy & Review Crawl</b> in &lt;20 seconds<br />
+      • <b>Brand-Matched Microsite</b> (auto-extracted logo &amp; hex palette)<br />
+      • <b>Interactive CFO Model</b> (OpEx Saved + New Revenue Uplift)<br />
+      • <b>Live Grounded Voice &amp; Chat Sandbox</b> with source citations
+    </td>
+  </tr>
+</table>
 
 ---
 
-## 🏗️ System Architecture
+## 🧭 The 60-Second Executive Workspace (`app.preflight.ai/d/<company>`)
 
-PreFlight AI is engineered as an asynchronous, multi-agent ingestion and runtime pipeline rather than a fragile single-prompt wrapper:
+Enter any target domain (e.g., `noon.com`, `aramex.com`, or a regional bank/telecom), select target channels (**Web Chat**, **WhatsApp**, **Voice / IVR**), and stream an executive-ready microsite with **four interactive modules**:
+
+<table>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>1️⃣ Automation Opportunity Matrix</h3>
+      <code>RAG-Only vs. API Tool-Call</code> • <code>Channel Routing</code>
+      <p>Ranks the prospect's <b>Top 10 Automation Workflows</b> by estimated ticket volume, technical complexity, and optimal channel (Voice vs. WhatsApp)—proving deep domain mastery without a 2-hour discovery call.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>2️⃣ Live Grounded Voice &amp; Chat Sandbox</h3>
+      <code>&lt;500ms Latency</code> • <code>Inline Citations</code> • <code>Web Speech Voice</code>
+      <p>A working, brand-themed AI agent trained on scraped policies with <b>real-time latency telemetry</b>, <b>simulated industry API calls</b> (e.g., Order Tracking, Policy Verification), and low-confidence human handoff cards.</p>
+    </td>
+  </tr>
+  <tr>
+    <td width="50%" valign="top">
+      <h3>3️⃣ External Friction Audit ("Trojan Horse")</h3>
+      <code>Live Review Mining</code> • <code>Instant AI Counter-Play</code>
+      <p>Mines public customer complaints (Trustpilot, Reddit, app reviews) to surface real support bottlenecks (e.g., <i>"40-minute hold times for rebooking"</i>) paired with an immediate autonomous resolution.</p>
+    </td>
+    <td width="50%" valign="top">
+      <h3>4️⃣ Dual-Pillar CFO ROI &amp; Revenue Model</h3>
+      <code>OpEx Deflection</code> • <code>Revenue Uplift</code> • <code>1-Click Export</code>
+      <p>Models both <b>Direct Support Cost Saved</b> and <b>New Conversational Revenue Generated</b> (24/7 queue recovery, proactive upsells, churn prevention) across Conservative, Base, and Scale scenarios.</p>
+    </td>
+  </tr>
+</table>
+
+---
+
+## 🏗️ Asynchronous Multi-Agent Architecture
+
+PreFlight AI is engineered as a parallel ingestion and low-latency runtime pipeline rather than a fragile single-prompt wrapper:
 
 ```mermaid
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor': '#1E1B4B', 'primaryTextColor': '#F8FAFC', 'primaryBorderColor': '#6366F1', 'lineColor': '#818CF8', 'secondaryColor': '#0F172A', 'tertiaryColor': '#1E293B', 'fontFamily': 'ui-monospace, SFMono-Regular, Menlo, monospace'}}}%%
 flowchart LR
-    A[Target Domain URL] --> B[FastAPI Orchestrator]
-    B --> C[Crawl4AI / Firecrawl]
-    B --> D[Tavily Review Intel]
-    B --> E[Brand Asset Extractor]
-    C & D & E --> F[LLM Extraction Pipeline]
-    F --> G[(PostgreSQL + pgvector)]
-    G --> H[Next.js Prospect Microsite]
-    H --> I[Grounded Chat & WebRTC Voice Sandbox]
+    A["🌐 Target Company URL"] --> B["⚡ Supabase Edge Orchestrator"]
+    B --> C["🔍 Tavily Policy Crawl"]
+    B --> D["💬 Tavily Review Intel"]
+    B --> E["🎨 Brand & Hex Parser"]
+    C & D & E --> F["🧠 Gemini Flash JSON Synthesis"]
+    F --> G[("🗄️ Supabase Postgres + Realtime")]
+    G --> H["🖥️ Brand-Themed Microsite"]
+    H --> I["🎙️ Groq & Web Speech Sandbox"]
+    H --> J["📊 CFO Savings & Revenue Model"]
+🔬 Engineering Deep-Dives
+Zero-Hallucination Confidence Gate: Every sandbox response returns the exact scraped URL snippet relied upon alongside a confidence score. Queries outside scraped policies trigger a Warm Human Agent Handoff Card with an auto-generated context summary.
+
+Vertical Mock API Tools: During ingestion, the synthesis agent generates 3 industry-specific JSON function schemas (e.g., check_shipment_status(tracking_id) for logistics or verify_policy_coverage(policy_no) for insurance) so the bot executes real-time actions inside the Inspector Drawer.
+
+Live Buyer Intent Telemetry: Tracks active dwell time, ROI slider adjustments, workflow clicks, and test messages via Supabase Realtime (demo_events), turning every shared demo link into a live buyer-intent signal.
+
+Pillar 1 — Direct OpEx Reduction: Compares current annual human support spend against blended autonomous resolution costs plus faster AI-assisted human escalations, outputting net savings, reclaimed agent hours, and payback period in days.
+
+Pillar 2 — Conversational Revenue Engine: Quantifies incremental top-line growth from 24/7 after-hours lead recovery, goal-based proactive cross-sell/upsell, and First-Contact Resolution churn reduction.
+
+Executive Export: Generates a clean, downloadable business-case brief pre-loaded with the buyer's exact assumptions.
+
+Bash
+# 1. Clone & install dependencies
+git clone [https://github.com/Dera-Unegbu/preflight-ai-app.git](https://github.com/Dera-Unegbu/preflight-ai-app.git)
+cd preflight-ai-app
+npm install
+
+# 2. Configure frontend environment
+cp .env.example .env
+# Add VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY
+
+# 3. Set server-side Edge Function secrets
+npx supabase secrets set TAVILY_API_KEY="tvly-..." GEMINI_API_KEY="AIza..." GROQ_API_KEY="gsk_..."
+npx supabase functions deploy site-intel
+
+# 4. Start development server
+npm run dev
