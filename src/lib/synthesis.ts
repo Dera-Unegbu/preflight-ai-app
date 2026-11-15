@@ -182,26 +182,39 @@ export function synthesizeReport(
     ? synthesis.mockTools
     : profile.tools;
 
-  // Complaints/friction: prefer live data
+  // Complaints/friction: prefer live data, topped up from the industry templates so the audit
+  // always renders at least 5 customer reviews (no truncation anywhere downstream).
+  const MIN_COMPLAINTS = 5;
   const frictionData = intel?.frictionPoints ?? [];
   const complaintWorkflowMap = [1, 2, 3, 1, 5, 4, 2, 3];
-  // Use live data if we have at least 3 items, otherwise fall back to static (which has 6)
-  const complaints: Complaint[] = frictionData.length >= 3
-    ? frictionData.map((f, i) => ({
-        source: (f as typeof f & { platform?: string }).platform ?? f.source,
+  type Extended = { platform?: string; severity?: "high" | "medium" | "low"; sourceUrl?: string };
+
+  const liveComplaints: Complaint[] = frictionData
+    .filter((f) => typeof f.quote === "string" && f.quote.trim().length > 0)
+    .map((f, i) => {
+      const ext = f as typeof f & Extended;
+      return {
+        source: ext.platform ?? f.source,
         quote: f.quote,
         theme: f.theme,
         aiFix: f.aiFix,
         workflowRef: complaintWorkflowMap[i] ?? null,
-        // Pass through extended fields if present
-        ...(((f as typeof f & { severity?: string }).severity) && { severity: (f as typeof f & { severity?: string }).severity as "high" | "medium" | "low" }),
-        ...(((f as typeof f & { sourceUrl?: string }).sourceUrl) && { sourceUrl: (f as typeof f & { sourceUrl?: string }).sourceUrl }),
-        ...(((f as typeof f & { platform?: string }).platform) && { platform: (f as typeof f & { platform?: string }).platform }),
-      }))
-    : profile.complaints.map((c, i) => ({
-        ...c,
-        workflowRef: complaintWorkflowMap[i] ?? null,
-      }));
+        ...(ext.severity && { severity: ext.severity }),
+        ...(ext.sourceUrl && { sourceUrl: ext.sourceUrl }),
+        ...(ext.platform && { platform: ext.platform }),
+      };
+    });
+
+  const complaints: Complaint[] = [...liveComplaints];
+  if (complaints.length < MIN_COMPLAINTS) {
+    const seenThemes = new Set(complaints.map((c) => c.theme.toLowerCase()));
+    for (const c of profile.complaints) {
+      if (complaints.length >= 6) break;
+      if (complaints.length >= MIN_COMPLAINTS && liveComplaints.length > 0) break;
+      if (seenThemes.has(c.theme.toLowerCase())) continue;
+      complaints.push({ ...c, workflowRef: complaintWorkflowMap[complaints.length] ?? null });
+    }
+  }
 
   // Policy chunks: prefer live scraped data
   const livePolicyChunks = intel?.policyChunks ?? [];

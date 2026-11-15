@@ -26,6 +26,7 @@ export interface SandboxAnswer {
   sourceSnippet: string | null;
   isLive: boolean;
   audioBase64?: string;
+  audioMimeType?: string;
 }
 
 export interface ConversationTurn {
@@ -47,12 +48,18 @@ function keywordScore(query: string, chunk: { topic: string; snippet: string }):
   return Math.min(0.98, 0.18 + (hits / words.length) * 0.8);
 }
 
+export interface AgentOptions {
+  prospectId?: string;
+  sessionId?: string;
+}
+
 /** Call the Gemini-powered chat-agent Edge Function */
 async function callChatAgent(
   message: string,
   history: ConversationTurn[],
   report: Report,
   mode: "chat" | "voice",
+  opts: AgentOptions = {},
 ): Promise<SandboxAnswer | null> {
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -81,9 +88,11 @@ async function callChatAgent(
           companyName: report.name,
           industryLabel: report.industryLabel,
           domain: report.domain,
+          prospectId: opts.prospectId,
+          sessionId: opts.sessionId,
           mode,
         }),
-        signal: AbortSignal.timeout(20000),
+        signal: AbortSignal.timeout(35000),
       },
     );
 
@@ -98,6 +107,7 @@ async function callChatAgent(
       escalateToHuman: boolean;
       latencyMs: number;
       audioBase64?: string;
+      audioMimeType?: string;
     };
 
     const wallTime = Math.round(performance.now() - start);
@@ -132,6 +142,7 @@ async function callChatAgent(
       sourceSnippet: data.sourceSnippet,
       isLive: true,
       audioBase64: data.audioBase64,
+      audioMimeType: data.audioMimeType,
     };
   } catch {
     return null;
@@ -193,8 +204,9 @@ export async function answerQueryAsync(
   history: ConversationTurn[],
   report: Report,
   mode: "chat" | "voice" = "chat",
+  opts: AgentOptions = {},
 ): Promise<SandboxAnswer> {
-  const liveAnswer = await callChatAgent(query, history, report, mode);
+  const liveAnswer = await callChatAgent(query, history, report, mode, opts);
   if (liveAnswer) return liveAnswer;
   return answerQueryLocal(query, report);
 }

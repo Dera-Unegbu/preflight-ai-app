@@ -73,6 +73,70 @@ function extractBrand(html: string, baseUrl: string) {
   return { logoUrl, tagline: tagline?.trim() ?? null, palette };
 }
 
+// ─── Friction helpers ─────────────────────────────────────────────────────────
+
+interface FrictionItem {
+  source: string;
+  sourceUrl: string | null;
+  platform: string;
+  theme: string;
+  quote: string;
+  severity: "high" | "medium" | "low";
+  aiFix: string;
+}
+
+const FRICTION_PLATFORMS = ["Trustpilot", "Reddit", "App Store", "Google Reviews", "Twitter/X", "G2"];
+const FRICTION_THEMES = ["Hold times & wait", "Refund delays", "Tracking visibility", "IVR & bot loops", "Billing errors", "Unresolved tickets"];
+const FRICTION_SEVERITIES: ("high" | "medium" | "low")[] = ["high", "high", "medium", "medium", "low", "low"];
+const MIN_FRICTION = 5;
+const MAX_FRICTION = 6;
+
+function reviewToFriction(
+  r: { url: string; content: string },
+  i: number,
+): FrictionItem {
+  let hostname = "Review";
+  try { hostname = new URL(r.url).hostname.replace("www.", ""); } catch { /* noop */ }
+  const lower = hostname.toLowerCase();
+  const platform = lower.includes("trustpilot") ? "Trustpilot"
+    : lower.includes("reddit") ? "Reddit"
+    : lower.includes("g2") ? "G2"
+    : FRICTION_PLATFORMS[i] ?? hostname;
+  return {
+    source: hostname,
+    sourceUrl: r.url,
+    platform,
+    theme: FRICTION_THEMES[i] ?? `Support issue ${i + 1}`,
+    quote: pruneContent(r.content, 220),
+    severity: FRICTION_SEVERITIES[i] ?? "medium",
+    aiFix: "Yellow.ai resolves this autonomously with grounded policy answers and live API tools, so the customer never waits in a queue.",
+  };
+}
+
+/** Return 5–6 friction points: synthesised ones first, topped up from raw review results */
+function buildFrictionPoints(
+  synthesised: FrictionItem[],
+  reviews: { url: string; content: string }[],
+): FrictionItem[] {
+  const out: FrictionItem[] = synthesised
+    .filter(f => f && typeof f.quote === "string" && f.quote.trim().length > 10)
+    .slice(0, MAX_FRICTION);
+
+  if (out.length < MIN_FRICTION) {
+    const usedUrls = new Set(out.map(f => f.sourceUrl).filter(Boolean));
+    const usedQuotes = new Set(out.map(f => f.quote.slice(0, 40)));
+    reviews.forEach((r) => {
+      if (out.length >= MAX_FRICTION) return;
+      if (usedUrls.has(r.url)) return;
+      const item = reviewToFriction(r, out.length);
+      if (item.quote.length < 20 || usedQuotes.has(item.quote.slice(0, 40))) return;
+      out.push(item);
+      usedUrls.add(r.url);
+    });
+  }
+  return out;
+}
+
 /** Gemini Flash Lite structured JSON synthesis */
 async function synthesizeWithGemini(
   companyName: string,
@@ -89,11 +153,11 @@ Schema: {
   "roiDefaults": { "monthlyVolume":number, "ahtMinutes":number, "costPerAgentMonth":number, "aiCostPerResolution":number, "deflectionRate":number, "agentCapacity":number, "fteHour":number },
   "mockTools": [{ "name":string, "args":string, "returns":string }]
 }
-Rules: exactly 10 workflows ranked by volume, EXACTLY 5 to 6 distinct frictionPoints covering diverse channels (hold times, refund delays, tracking gaps, IVR loops, billing errors) — each with a realistic verbatim-style customer complaint quote, the platform/source name (Trustpilot/Reddit/App Store/Google Reviews/Twitter), severity tag (high/medium/low), and a specific Yellow.ai autonomous resolution. Exactly 3 mockTools. Keep strings under 100 chars. Deflection rate 0.0-1.0.`;
+Rules: exactly 10 workflows ranked by volume. frictionPoints MUST contain 5 to 6 distinct items (never fewer than 5), each covering a different theme such as hold times, billing/refund delays, tracking gaps, IVR loops, or unresolved tickets. Each friction point needs: a realistic customer complaint quote (draw on the supplied reviews where possible), the source platform name (Trustpilot/Reddit/App Store/Google Reviews/Twitter), sourceUrl (the review URL when known, else null), a severity tag (high/medium/low), and a specific Yellow.ai autonomous resolution in aiFix. Exactly 3 mockTools. Keep strings under 100 chars. Deflection rate 0.0-1.0.`;
 
   const userPrompt = `Company: ${companyName} (${domain})
 Policy content (top pages): ${policyContent.slice(0, 10000)}
-Customer reviews/complaints (aim to surface at least 5 distinct friction themes): ${reviewContent.slice(0, 4800)}
+Customer reviews/complaints (aim to surface at least 5 distinct friction themes): ${reviewContent.slice(0, 5200)}
 Generate the JSON analysis.`;
 
   try {
@@ -108,7 +172,7 @@ Generate the JSON analysis.`;
           generationConfig: {
             responseMimeType: "application/json",
             temperature: 0.2,
-            maxOutputTokens: 2048,
+            maxOutputTokens: 4096,
           },
         }),
         signal: AbortSignal.timeout(30000),
@@ -201,6 +265,14 @@ Deno.serve(async (req: Request) => {
               palette: Array.isArray(b.palette) ? b.palette : [],
               cached: true,
               synthesis: data.report as Record<string, unknown> ?? null,
+              // Cached rows store the full Report, so surface its scraped context & friction data too
+              policyChunks: Array.isArray((data.report as Record<string, unknown> | null)?.policies)
+                ? (data.report as Record<string, unknown>).policies
+                : [],
+              frictionPoints: Array.isArray((data.report as Record<string, unknown> | null)?.complaints)
+                ? (data.report as Record<string, unknown>).complaints
+                : [],
+              companyName: ((data.report as Record<string, unknown> | null)?.name as string | undefined) ?? "",
             }),
             { headers: { ...corsHeaders, "Content-Type": "application/json" } },
           );
@@ -236,7 +308,7 @@ Deno.serve(async (req: Request) => {
       // 2c. Customer friction audit via Tavily (web-wide)
       tavilyKey
         ? tavilySearch(
-            `"${companyName}" (customer service complaints OR bad review OR hold time OR billing issue OR refund problem OR support frustration) site:trustpilot.com OR site:reddit.com OR site:g2.com OR site:appstore.com`,
+            `"${companyName}" customer service complaints OR review OR hold time OR support site:trustpilot.com OR site:reddit.com`,
             { searchDepth: "advanced", maxResults: 8 },
             tavilyKey,
           )
@@ -261,7 +333,7 @@ Deno.serve(async (req: Request) => {
     // ── 5. Assemble review content ────────────────────────────────────────────
     const reviewResults = reviewResult.status === "fulfilled" ? reviewResult.value.results : [];
     const reviewContent = reviewResults
-      .slice(0, 4)
+      .slice(0, 8)
       .map(r => `SOURCE: ${r.url}\n${pruneContent(r.content, 600)}`)
       .join("\n\n");
 
@@ -282,24 +354,11 @@ Deno.serve(async (req: Request) => {
       };
     });
 
-    // ── 8. Build friction items from synthesis or reviews ─────────────────────
-    const frictionPoints = synthesis?.frictionPoints as unknown[] | null
-      ?? reviewResults.slice(0, 6).map((r, i) => {
-          let hostname = "Review";
-          try { hostname = new URL(r.url).hostname.replace("www.", ""); } catch { /* noop */ }
-          const platforms = ["Trustpilot", "Reddit", "App Store", "Google Reviews", "Twitter/X", "G2"];
-          const themes = ["Hold times & wait", "Refund delays", "Tracking visibility", "IVR & bot loops", "Billing errors", "Unresolved tickets"];
-          const severities: ("high" | "medium" | "low")[] = ["high", "high", "medium", "medium", "low", "low"];
-          return {
-            source: hostname,
-            sourceUrl: r.url,
-            platform: platforms[i] ?? hostname,
-            theme: themes[i] ?? `Support issue ${i + 1}`,
-            quote: pruneContent(r.content, 220),
-            severity: severities[i] ?? "medium",
-            aiFix: "An AI agent can resolve this automatically with grounded policy answers and live API tools.",
-          };
-        });
+    // ── 8. Build friction items (always 5–6): synthesis first, topped up from raw reviews ──
+    const frictionPoints = buildFrictionPoints(
+      (synthesis?.frictionPoints as FrictionItem[] | undefined) ?? [],
+      reviewResults,
+    );
 
     // ── 9. Full payload ───────────────────────────────────────────────────────
     const payload = {

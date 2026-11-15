@@ -63,6 +63,55 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
   const endRef = useRef<HTMLDivElement>(null);
   const historyRef = useRef<ConversationTurn[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const sessionIdRef = useRef<string>(
+    typeof crypto !== "undefined" && "randomUUID" in crypto
+      ? crypto.randomUUID()
+      : `s-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+  );
+
+  const stopSpeaking = useCallback(() => {
+    if (audioRef.current) {
+      audioRef.current.pause();
+      audioRef.current = null;
+    }
+    window.speechSynthesis?.cancel();
+  }, []);
+
+  const speakWithBrowser = useCallback((text: string) => {
+    if (!window.speechSynthesis) return;
+    const utter = new SpeechSynthesisUtterance(text.length > 300 ? text.slice(0, 300) + "…" : text);
+    utter.rate = 1.05;
+    utter.pitch = 1.1;
+    const female = window.speechSynthesis.getVoices().find((v) => /female|samantha|zira|aria|jenny|google uk english female/i.test(v.name));
+    if (female) utter.voice = female;
+    window.speechSynthesis.speak(utter);
+  }, []);
+
+  /** Deepgram audio first; browser speech synthesis only if Deepgram failed or playback is blocked */
+  const playAgentAudio = useCallback((answer: SandboxAnswer) => {
+    stopSpeaking();
+    if (!answer.audioBase64) {
+      speakWithBrowser(answer.reply);
+      return;
+    }
+    try {
+      const binary = atob(answer.audioBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      const blob = new Blob([bytes], { type: answer.audioMimeType || "audio/mpeg" });
+      const url = URL.createObjectURL(blob);
+      const audio = new Audio(url);
+      audioRef.current = audio;
+      audio.onended = () => { URL.revokeObjectURL(url); if (audioRef.current === audio) audioRef.current = null; };
+      audio.onerror = () => { URL.revokeObjectURL(url); audioRef.current = null; speakWithBrowser(answer.reply); };
+      audio.play().catch(() => { URL.revokeObjectURL(url); audioRef.current = null; speakWithBrowser(answer.reply); });
+    } catch {
+      speakWithBrowser(answer.reply);
+    }
+  }, [stopSpeaking, speakWithBrowser]);
+
+  useEffect(() => () => stopSpeaking(), [stopSpeaking]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -96,14 +145,15 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
       { role: "user" as const, content: q },
     ].slice(-12);
 
-    // Speak user query in voice mode
-    if (mode === "voice" && !voiceMuted && window.speechSynthesis) {
-      window.speechSynthesis.cancel();
-    }
+    // Stop any audio still playing from the previous turn
+    if (mode === "voice") stopSpeaking();
 
     try {
       const agentMode: "chat" | "voice" = mode === "voice" ? "voice" : "chat";
-      const answer = await answerQueryAsync(q, historyRef.current, report, agentMode);
+      const answer = await answerQueryAsync(q, historyRef.current, report, agentMode, {
+        prospectId,
+        sessionId: sessionIdRef.current,
+      });
 
       setMessages((m) => [...m, { role: "agent", text: answer.reply, answer }]);
       setInspector(answer);
@@ -115,39 +165,8 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
         { role: "assistant" as const, content: answer.reply },
       ].slice(-12);
 
-      // TTS in voice mode — Deepgram audio first, browser TTS as fallback
-      if (mode === "voice" && !voiceMuted) {
-        window.speechSynthesis?.cancel();
-        if (answer.audioBase64) {
-          try {
-            const binary = atob(answer.audioBase64);
-            const bytes = new Uint8Array(binary.length);
-            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-            const blob = new Blob([bytes], { type: "audio/mpeg" });
-            const url = URL.createObjectURL(blob);
-            const audio = new Audio(url);
-            audio.onended = () => URL.revokeObjectURL(url);
-            void audio.play();
-          } catch {
-            // Deepgram decode failed — fall back to browser TTS
-            if (window.speechSynthesis) {
-              const utter = new SpeechSynthesisUtterance(
-                answer.reply.length > 300 ? answer.reply.slice(0, 300) + "…" : answer.reply,
-              );
-              utter.rate = 1.05;
-              utter.pitch = 0.95;
-              window.speechSynthesis.speak(utter);
-            }
-          }
-        } else if (window.speechSynthesis) {
-          const utter = new SpeechSynthesisUtterance(
-            answer.reply.length > 300 ? answer.reply.slice(0, 300) + "…" : answer.reply,
-          );
-          utter.rate = 1.05;
-          utter.pitch = 0.95;
-          window.speechSynthesis.speak(utter);
-        }
-      }
+      // Voice tab: auto-play Deepgram audio (browser TTS only as fallback)
+      if (mode === "voice" && !voiceMuted) playAgentAudio(answer);
 
       if (answer.escalated) logEvent("escalation", { question: q });
       if (answer.toolCall) logEvent("tool_call", { tool: answer.toolCall.name, question: q });
@@ -159,7 +178,7 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
     } catch {
       setTyping(false);
     }
-  }, [typing, mode, voiceMuted, report, prospectId]);
+  }, [typing, mode, voiceMuted, report, prospectId, stopSpeaking, playAgentAudio]);
 
   const modes: { id: Mode; label: string; icon: typeof MessageSquare }[] = [
     { id: "web", label: "Web Chat", icon: MessageSquare },
@@ -191,7 +210,7 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
                 if (id === "voice") setInCall(true);
                 if (id !== "voice" && inCall) {
                   setInCall(false);
-                  window.speechSynthesis?.cancel();
+                  stopSpeaking();
                 }
               }}
               className={`flex cursor-pointer items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
@@ -224,7 +243,7 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
               typing={typing}
               muted={voiceMuted}
               setMuted={setVoiceMuted}
-              onEnd={() => { setInCall(false); window.speechSynthesis?.cancel(); }}
+              onEnd={() => { setInCall(false); stopSpeaking(); }}
               onSpeak={(t) => void send(t)}
             />
           ) : (

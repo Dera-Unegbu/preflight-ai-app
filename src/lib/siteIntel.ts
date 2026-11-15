@@ -58,6 +58,9 @@ export interface LivePolicyChunk {
 
 export interface LiveFrictionPoint {
   source: string;
+  sourceUrl?: string | null;
+  platform?: string;
+  severity?: "high" | "medium" | "low";
   theme: string;
   quote: string;
   aiFix: string;

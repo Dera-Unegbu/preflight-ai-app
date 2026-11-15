@@ -14,7 +14,7 @@
 [![Vite](https://img.shields.io/badge/Vite-Tailwind_CSS-0F172A?style=for-the-badge&logo=vite&logoColor=A78BFA)](https://vitejs.dev/)
 [![Supabase](https://img.shields.io/badge/Supabase-Edge_Functions_%2B_Realtime-0F172A?style=for-the-badge&logo=supabase&logoColor=34D399)](https://supabase.com/)
 [![Gemini](https://img.shields.io/badge/Gemini_Flash-Structured_Synthesis-0F172A?style=for-the-badge&logo=google&logoColor=60A5FA)](https://ai.google.dev/)
-[![Groq](https://img.shields.io/badge/Groq-Sub--500ms_Inference-0F172A?style=for-the-badge&logo=lightning&logoColor=FBBF24)](https://groq.com/)
+[![Deepgram](https://img.shields.io/badge/Deepgram-Flux_TTS_Voice-0F172A?style=for-the-badge&logo=soundcloud&logoColor=FBBF24)](https://deepgram.com/)
 
 <br />
 
@@ -99,5 +99,5 @@ flowchart LR
     C & D & E --> F["🧠 Gemini Flash JSON Synthesis"]
     F --> G[("🗄️ Supabase Postgres + Realtime")]
     G --> H["🖥️ Brand-Themed Microsite"]
-    H --> I["🎙️ Groq & Web Speech Sandbox"]
+    H --> I["🎙️ Gemini + Deepgram Voice Sandbox"]
     H --> J["📊 CFO Savings & Revenue Model"]
