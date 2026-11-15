@@ -1,0 +1,42 @@
+PROPRIETARY SOFTWARE LICENSE — ALL RIGHTS RESERVED
+
+Copyright (c) 2026 Chideraaodesigo Daniel Unegbu. All Rights Reserved.
+
+1. Ownership and Intellectual Property
+This software, source code, system architecture, prompts, documentation, UI/UX 
+designs, and associated assets (collectively, the "Software") for PreFlight AI 
+are the exclusive proprietary property of Chideraaodesigo Daniel Unegbu 
+("Author"). Nothing in this License transfers any ownership or intellectual 
+property rights to you.
+
+2. Grant of Evaluation Access Only
+If you have been explicitly granted access to this private repository by the 
+Author, you are granted a limited, non-exclusive, non-transferable, revocable 
+license solely to view and evaluate the Software for authorized business, 
+investment, or partnership review purposes.
+
+3. Strict Restrictions
+Except as expressly authorized in writing by the Author, you may NOT:
+  (a) Copy, reproduce, fork, clone, or mirror the Software;
+  (b) Modify, adapt, translate, or create derivative works based on the Software;
+  (c) Distribute, publish, sell, lease, sublicense, or transfer the Software to 
+      any third party;
+  (d) Use the Software, in whole or in part, for any commercial, production, 
+      or internal operational purpose;
+  (e) Reverse engineer, decompile, or extract proprietary prompts, workflows, 
+      or data models for competitive use.
+
+4. Confidentiality
+All non-public code, architectural patterns, and business logic contained in 
+this repository constitute confidential information of the Author and may not 
+be disclosed to third parties without prior written consent.
+
+5. Disclaimer of Warranty and Limitation of Liability
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR 
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY, 
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE 
+AUTHOR BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER LIABILITY ARISING FROM, OUT 
+OF, OR IN CONNECTION WITH THE SOFTWARE.
+
+For licensing, commercial deployment, or partnership inquiries, contact the 
+Author directly.
