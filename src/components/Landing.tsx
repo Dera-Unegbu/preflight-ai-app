@@ -38,7 +38,7 @@ export default function Landing({ onStart, recent, onOpenRecent, busy }: Props) 
     e.preventDefault();
     const cleaned = domain.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
     if (domain.trim() && !cleaned.includes(".")) {
-      setDomainError("input a valid url");
+      setDomainError("Input a valid URL (e.g. yellow.ai))");
       return;
     }
     if (!cleaned || selected.length === 0) return;
