@@ -102,7 +102,8 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
     }
 
     try {
-      const answer = await answerQueryAsync(q, historyRef.current, report);
+      const agentMode: "chat" | "voice" = mode === "voice" ? "voice" : "chat";
+      const answer = await answerQueryAsync(q, historyRef.current, report, agentMode);
 
       setMessages((m) => [...m, { role: "agent", text: answer.reply, answer }]);
       setInspector(answer);
@@ -114,14 +115,38 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
         { role: "assistant" as const, content: answer.reply },
       ].slice(-12);
 
-      // TTS in voice mode
-      if (mode === "voice" && !voiceMuted && window.speechSynthesis) {
-        const utter = new SpeechSynthesisUtterance(
-          answer.reply.length > 300 ? answer.reply.slice(0, 300) + "…" : answer.reply,
-        );
-        utter.rate = 1.05;
-        utter.pitch = 0.95;
-        window.speechSynthesis.speak(utter);
+      // TTS in voice mode — Deepgram audio first, browser TTS as fallback
+      if (mode === "voice" && !voiceMuted) {
+        window.speechSynthesis?.cancel();
+        if (answer.audioBase64) {
+          try {
+            const binary = atob(answer.audioBase64);
+            const bytes = new Uint8Array(binary.length);
+            for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+            const blob = new Blob([bytes], { type: "audio/mpeg" });
+            const url = URL.createObjectURL(blob);
+            const audio = new Audio(url);
+            audio.onended = () => URL.revokeObjectURL(url);
+            void audio.play();
+          } catch {
+            // Deepgram decode failed — fall back to browser TTS
+            if (window.speechSynthesis) {
+              const utter = new SpeechSynthesisUtterance(
+                answer.reply.length > 300 ? answer.reply.slice(0, 300) + "…" : answer.reply,
+              );
+              utter.rate = 1.05;
+              utter.pitch = 0.95;
+              window.speechSynthesis.speak(utter);
+            }
+          }
+        } else if (window.speechSynthesis) {
+          const utter = new SpeechSynthesisUtterance(
+            answer.reply.length > 300 ? answer.reply.slice(0, 300) + "…" : answer.reply,
+          );
+          utter.rate = 1.05;
+          utter.pitch = 0.95;
+          window.speechSynthesis.speak(utter);
+        }
       }
 
       if (answer.escalated) logEvent("escalation", { question: q });
@@ -238,7 +263,7 @@ export default function SandboxModule({ report, prospectId, isOwnView }: Props) 
           <span className="text-xs font-semibold uppercase tracking-widest text-neutral-300">Inspector</span>
           {inspector?.isLive && (
             <span className="ml-auto flex items-center gap-1 text-[10px] text-emerald-400">
-              <Zap className="h-3 w-3" /> Groq
+              <Zap className="h-3 w-3" /> Gemini{inspector.audioBase64 ? " + Deepgram" : ""}
             </span>
           )}
         </div>
@@ -272,7 +297,7 @@ function Inspector({ answer }: { answer: SandboxAnswer }) {
       </div>
       <div className="flex items-center justify-between">
         <span className="text-neutral-500">Model</span>
-        <span className="font-mono text-neutral-400">{answer.isLive ? "Groq (live)" : "Local fallback"}</span>
+        <span className="font-mono text-neutral-400">{answer.isLive ? (answer.audioBase64 ? "Gemini + Deepgram TTS" : "Gemini (live)") : "Local fallback"}</span>
       </div>
 
       {answer.escalated && (
@@ -366,7 +391,7 @@ function ChatSim({
         )}
         <div className="min-w-0">
           <p className="truncate text-sm font-semibold text-white">{report.name} Support</p>
-          <p className="text-xs text-neutral-400">{report.isLive ? "AI agent (Groq) · online" : "AI agent · online"}</p>
+          <p className="text-xs text-neutral-400">{report.isLive ? "AI agent (Gemini) · online" : "AI agent · online"}</p>
         </div>
       </div>
 

@@ -18,6 +18,10 @@ export interface Complaint {
   theme: string;
   aiFix: string;
   workflowRef: number | null;
+  // Extended fields from live synthesis
+  severity?: "high" | "medium" | "low";
+  platform?: string;
+  sourceUrl?: string;
 }
 
 export interface PolicyChunk {

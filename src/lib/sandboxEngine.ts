@@ -25,6 +25,7 @@ export interface SandboxAnswer {
   sourceUrl: string | null;
   sourceSnippet: string | null;
   isLive: boolean;
+  audioBase64?: string;
 }
 
 export interface ConversationTurn {
@@ -33,9 +34,8 @@ export interface ConversationTurn {
 }
 
 const GREETING_RE = /^(hi|hello|hey|salam|good (morning|afternoon|evening))\b/i;
-const THANKS_RE = /\b(thank|thanks|shukran|appreciate)\b/i;
+const THANKS_RE = /\b(thank|thanks|shukran|appreciate|great|perfect|awesome)\b/i;
 
-// Keyword scorer for chunk retrieval (used both locally and as fallback)
 const STOP_WORDS = new Set(["the","a","an","is","are","my","i","to","do","does","can","how","what","of","for","in","on","and","it","be","will","with","you","your","me"]);
 
 function keywordScore(query: string, chunk: { topic: string; snippet: string }): number {
@@ -47,11 +47,12 @@ function keywordScore(query: string, chunk: { topic: string; snippet: string }):
   return Math.min(0.98, 0.18 + (hits / words.length) * 0.8);
 }
 
-/** Call the Groq-powered chat-agent Edge Function */
+/** Call the Gemini-powered chat-agent Edge Function */
 async function callChatAgent(
   message: string,
   history: ConversationTurn[],
   report: Report,
+  mode: "chat" | "voice",
 ): Promise<SandboxAnswer | null> {
   try {
     const supabaseUrl = import.meta.env.VITE_SUPABASE_URL as string;
@@ -67,14 +68,22 @@ async function callChatAgent(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          message,
-          history: history.slice(-6),
-          policyChunks: report.policies.slice(0, 10),
+          message: message.slice(0, 800),
+          history: history.slice(-8),
+          policyChunks: report.policies.slice(0, 12),
           mockTools: report.tools,
+          workflows: report.workflows.slice(0, 10).map((w, i) => ({
+            rank: w.rank ?? i + 1,
+            title: w.title,
+            intent: w.intent,
+            channel: w.channel,
+          })),
           companyName: report.name,
           industryLabel: report.industryLabel,
+          domain: report.domain,
+          mode,
         }),
-        signal: AbortSignal.timeout(15000),
+        signal: AbortSignal.timeout(20000),
       },
     );
 
@@ -88,11 +97,11 @@ async function callChatAgent(
       toolCallExecuted: { name: string; args: Record<string, string>; result: Record<string, unknown> } | null;
       escalateToHuman: boolean;
       latencyMs: number;
+      audioBase64?: string;
     };
 
     const wallTime = Math.round(performance.now() - start);
 
-    // Map top chunks for the inspector
     const scored = report.policies
       .map((p) => ({ ...p, score: keywordScore(message, p) }))
       .sort((a, b) => b.score - a.score);
@@ -122,6 +131,7 @@ async function callChatAgent(
       sourceUrl: data.sourceUrl,
       sourceSnippet: data.sourceSnippet,
       isLive: true,
+      audioBase64: data.audioBase64,
     };
   } catch {
     return null;
@@ -147,52 +157,44 @@ function answerQueryLocal(query: string, report: Report): SandboxAnswer {
 
   if (GREETING_RE.test(query.trim())) {
     return {
-      reply: `Hi! I'm ${report.name}'s AI support agent. I can help with ${report.workflows.slice(0, 3).map((w) => w.title.toLowerCase()).join(", ")} and more.`,
+      reply: `Hi there! I'm ${report.name}'s AI support assistant. I can help with ${report.workflows.slice(0, 3).map((w) => w.title.toLowerCase()).join(", ")} and more — what can I do for you today?`,
       chunks: [], toolCall: null, confidence: 0.99, escalated: false,
       latencyMs: Math.round(performance.now() - start) + 180,
       sourceUrl: null, sourceSnippet: null, isLive: false,
     };
   }
 
-  if (THANKS_RE.test(query.trim()) && query.trim().length < 30) {
+  if (THANKS_RE.test(query.trim()) && query.trim().length < 40) {
     return {
-      reply: "You're welcome! Anything else I can help you with?",
+      reply: "You're welcome! Is there anything else I can help you with today?",
       chunks: [], toolCall: null, confidence: 0.99, escalated: false,
       latencyMs: Math.round(performance.now() - start) + 150,
       sourceUrl: null, sourceSnippet: null, isLive: false,
     };
   }
 
-  const weakGrounding = !top || top.score < 0.32;
-  if (weakGrounding) {
-    return {
-      reply: `I want to make sure you get an accurate answer, so I'm connecting you with a human colleague who specializes in this. I've shared our conversation — you won't need to repeat yourself.`,
-      chunks, toolCall: null,
-      confidence: Math.round((top?.score ?? 0.2) * 100) / 100,
-      escalated: true, latencyMs,
-      sourceUrl: top?.url ?? null, sourceSnippet: top?.snippet ?? null, isLive: false,
-    };
-  }
-
-  const reply = top.score >= 0.55
-    ? `Here's what our policy says: ${top.snippet}${second && second.score > 0.5 ? ` Related: ${second.snippet}` : ""}`
-    : `The closest guidance I have: ${top.snippet}`;
+  const reply = top && top.score >= 0.4
+    ? `Here's what our policy says: ${top.snippet}${second && second.score > 0.5 ? ` Also: ${second.snippet}` : ""}`
+    : top?.snippet
+      ? `The closest information I have: ${top.snippet}`
+      : `I'd be happy to help with that. For specific details about ${report.name}'s policies, please check the help center or describe your issue and I'll do my best.`;
 
   return {
     reply, chunks, toolCall: null,
-    confidence: Math.round(Math.max(0.55, top.score) * 100) / 100,
+    confidence: Math.round(Math.max(0.55, top?.score ?? 0.55) * 100) / 100,
     escalated: false, latencyMs,
-    sourceUrl: top.url, sourceSnippet: top.snippet, isLive: false,
+    sourceUrl: top?.url ?? null, sourceSnippet: top?.snippet ?? null, isLive: false,
   };
 }
 
-/** Main entry: tries live Groq agent first, falls back to local */
+/** Main entry: tries live Gemini agent first, falls back to local */
 export async function answerQueryAsync(
   query: string,
   history: ConversationTurn[],
   report: Report,
+  mode: "chat" | "voice" = "chat",
 ): Promise<SandboxAnswer> {
-  const liveAnswer = await callChatAgent(query, history, report);
+  const liveAnswer = await callChatAgent(query, history, report, mode);
   if (liveAnswer) return liveAnswer;
   return answerQueryLocal(query, report);
 }

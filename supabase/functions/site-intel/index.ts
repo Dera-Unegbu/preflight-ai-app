@@ -85,15 +85,15 @@ async function synthesizeWithGemini(
 Schema: {
   "companyProfile": { "name":string, "industry":string, "vertical":string, "monthlyTicketVolume":number, "avgHumanCostUSD":number, "avgOrderValue":number },
   "workflows": [{ "rank":number, "title":string, "intent":string, "pctVolume":number, "complexity":"RAG-Only"|"API Tool-Call", "channel":"Voice"|"WhatsApp"|"Web Chat", "toolName":string|null }],
-  "frictionPoints": [{ "source":string, "theme":string, "quote":string, "aiFix":string }],
+  "frictionPoints": [{ "source":string, "sourceUrl":string|null, "platform":string, "theme":string, "quote":string, "severity":"high"|"medium"|"low", "aiFix":string }],
   "roiDefaults": { "monthlyVolume":number, "ahtMinutes":number, "costPerAgentMonth":number, "aiCostPerResolution":number, "deflectionRate":number, "agentCapacity":number, "fteHour":number },
   "mockTools": [{ "name":string, "args":string, "returns":string }]
 }
-Rules: exactly 10 workflows ranked by volume, 3-5 frictionPoints, exactly 3 mockTools. Keep strings under 80 chars. Deflection rate 0.0-1.0.`;
+Rules: exactly 10 workflows ranked by volume, EXACTLY 5 to 6 distinct frictionPoints covering diverse channels (hold times, refund delays, tracking gaps, IVR loops, billing errors) — each with a realistic verbatim-style customer complaint quote, the platform/source name (Trustpilot/Reddit/App Store/Google Reviews/Twitter), severity tag (high/medium/low), and a specific Yellow.ai autonomous resolution. Exactly 3 mockTools. Keep strings under 100 chars. Deflection rate 0.0-1.0.`;
 
   const userPrompt = `Company: ${companyName} (${domain})
 Policy content (top pages): ${policyContent.slice(0, 10000)}
-Customer reviews/complaints: ${reviewContent.slice(0, 2400)}
+Customer reviews/complaints (aim to surface at least 5 distinct friction themes): ${reviewContent.slice(0, 4800)}
 Generate the JSON analysis.`;
 
   try {
@@ -236,8 +236,8 @@ Deno.serve(async (req: Request) => {
       // 2c. Customer friction audit via Tavily (web-wide)
       tavilyKey
         ? tavilySearch(
-            `"${companyName}" customer service complaints hold time support review`,
-            { searchDepth: "advanced", maxResults: 4 },
+            `"${companyName}" (customer service complaints OR bad review OR hold time OR billing issue OR refund problem OR support frustration) site:trustpilot.com OR site:reddit.com OR site:g2.com OR site:appstore.com`,
+            { searchDepth: "advanced", maxResults: 8 },
             tavilyKey,
           )
         : Promise.resolve({ results: [] }),
@@ -284,12 +284,22 @@ Deno.serve(async (req: Request) => {
 
     // ── 8. Build friction items from synthesis or reviews ─────────────────────
     const frictionPoints = synthesis?.frictionPoints as unknown[] | null
-      ?? reviewResults.slice(0, 4).map((r, i) => ({
-          source: new URL(r.url).hostname.replace("www.", ""),
-          theme: `Support issue ${i + 1}`,
-          quote: pruneContent(r.content, 220),
-          aiFix: "An AI agent can resolve this automatically with grounded policy answers and live API tools.",
-        }));
+      ?? reviewResults.slice(0, 6).map((r, i) => {
+          let hostname = "Review";
+          try { hostname = new URL(r.url).hostname.replace("www.", ""); } catch { /* noop */ }
+          const platforms = ["Trustpilot", "Reddit", "App Store", "Google Reviews", "Twitter/X", "G2"];
+          const themes = ["Hold times & wait", "Refund delays", "Tracking visibility", "IVR & bot loops", "Billing errors", "Unresolved tickets"];
+          const severities: ("high" | "medium" | "low")[] = ["high", "high", "medium", "medium", "low", "low"];
+          return {
+            source: hostname,
+            sourceUrl: r.url,
+            platform: platforms[i] ?? hostname,
+            theme: themes[i] ?? `Support issue ${i + 1}`,
+            quote: pruneContent(r.content, 220),
+            severity: severities[i] ?? "medium",
+            aiFix: "An AI agent can resolve this automatically with grounded policy answers and live API tools.",
+          };
+        });
 
     // ── 9. Full payload ───────────────────────────────────────────────────────
     const payload = {

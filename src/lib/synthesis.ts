@@ -184,14 +184,19 @@ export function synthesizeReport(
 
   // Complaints/friction: prefer live data
   const frictionData = intel?.frictionPoints ?? [];
-  const complaintWorkflowMap = [1, 2, 3, 1, 5, 4];
-  const complaints: Complaint[] = frictionData.length > 0
+  const complaintWorkflowMap = [1, 2, 3, 1, 5, 4, 2, 3];
+  // Use live data if we have at least 3 items, otherwise fall back to static (which has 6)
+  const complaints: Complaint[] = frictionData.length >= 3
     ? frictionData.map((f, i) => ({
-        source: f.source,
+        source: (f as typeof f & { platform?: string }).platform ?? f.source,
         quote: f.quote,
         theme: f.theme,
         aiFix: f.aiFix,
         workflowRef: complaintWorkflowMap[i] ?? null,
+        // Pass through extended fields if present
+        ...(((f as typeof f & { severity?: string }).severity) && { severity: (f as typeof f & { severity?: string }).severity as "high" | "medium" | "low" }),
+        ...(((f as typeof f & { sourceUrl?: string }).sourceUrl) && { sourceUrl: (f as typeof f & { sourceUrl?: string }).sourceUrl }),
+        ...(((f as typeof f & { platform?: string }).platform) && { platform: (f as typeof f & { platform?: string }).platform }),
       }))
     : profile.complaints.map((c, i) => ({
         ...c,
