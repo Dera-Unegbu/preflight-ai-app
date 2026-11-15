@@ -1,2 +1,5 @@
 [functions.site-intel]
 verify_jwt = false
+
+[functions.chat-agent]
+verify_jwt = false

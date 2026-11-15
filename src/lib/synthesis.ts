@@ -1,5 +1,6 @@
 import type { Workflow, Complaint, PolicyChunk, Channel } from "./industryProfiles";
 import { resolveIndustry, PROFILES, industryLabel } from "./industryProfiles";
+import type { SiteIntelPayload, GeminiSynthesis } from "./siteIntel";
 
 export interface Brand {
   logoUrl: string | null;
@@ -27,6 +28,9 @@ export interface Report {
     agentCapacity: number;
     fteHour: number;
   };
+  // Live data flags
+  isLive?: boolean;
+  livePolicyChunks?: PolicyChunk[];
 }
 
 export function slugify(input: string): string {
@@ -67,17 +71,15 @@ function normalizeHex(raw: string): string | null {
     pink: "#EC4899", gold: "#D4AF37", maroon: "#7F1D1D", brown: "#78350F",
   };
   const lower = raw.toLowerCase().trim();
-  const m = lower.match(/^(?:rgb\s*)?\(?(\d{1,3})\s*,\s*(\d{1,3})\s*,\s*(\d{1,3})\)?$/);
+  const m = lower.match(/^(?:rgb\s*)?\(?([\d.]{1,5})\s*,\s*([\d.]{1,5})\s*,\s*([\d.]{1,5})\)?$/);
   if (m) {
     const [r, g, b] = [m[1], m[2], m[3]].map(Number);
     if (r <= 255 && g <= 255 && b <= 255)
-      return `#${[r, g, b].map((v) => v.toString(16).padStart(2, "0")).join("")}`.toUpperCase();
+      return `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, "0")).join("")}`.toUpperCase();
   }
   return named[lower] ?? null;
 }
 
-// Rank palette so saturated, mid-lightness colors lead (they read as "brand"
-// colors; very dark or near-white tones are backgrounds).
 function scoreColor(hex: string): number {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -98,14 +100,48 @@ export function pickPalette(brand: Brand, industryKey: string): string[] {
     const ranked = [...unique].sort((a, b) => scoreColor(b) - scoreColor(a));
     const primary = ranked[0];
     const rest = ranked.slice(1, 4);
-    return [primary, ...rest, ...FALLBACK_PALETTES[industryKey].filter((c) => !ranked.includes(c))].slice(0, 5);
+    const fb = FALLBACK_PALETTES[industryKey] ?? FALLBACK_PALETTES.ecommerce;
+    return [primary, ...rest, ...fb.filter((c) => !ranked.includes(c))].slice(0, 5);
   }
-  return FALLBACK_PALETTES[industryKey];
+  return FALLBACK_PALETTES[industryKey] ?? FALLBACK_PALETTES.ecommerce;
+}
+
+/** Merge Gemini synthesis into Report, falling back to static profiles */
+function mergeGeminiWorkflows(
+  synthesis: GeminiSynthesis,
+  staticProfile: ReturnType<typeof resolveIndustry>,
+  totalVolume: number,
+): Workflow[] {
+  const synWf = synthesis.workflows;
+  if (!synWf?.length) {
+    return staticProfile.workflows.map((w, i) => ({
+      ...w,
+      rank: i + 1,
+      estMonthlyVolume: Math.round((totalVolume * w.pctVolume) / 100),
+    }));
+  }
+
+  return synWf.slice(0, 10).map((w, i) => {
+    const tool = w.toolName
+      ? { name: w.toolName, args: "id", returns: "result" }
+      : undefined;
+    return {
+      rank: w.rank ?? i + 1,
+      title: w.title,
+      description: w.intent,
+      intent: w.intent,
+      pctVolume: w.pctVolume ?? Math.round(100 / (synWf.length || 10)),
+      complexity: w.complexity ?? "RAG-Only",
+      channel: w.channel ?? "Web Chat",
+      estMonthlyVolume: Math.round((totalVolume * (w.pctVolume ?? 10)) / 100),
+      tool,
+    };
+  });
 }
 
 export function synthesizeReport(
   domain: string,
-  brand: Brand,
+  brand: Brand & { _intel?: SiteIntelPayload },
   channels: Channel[],
 ): Report {
   const cleanDomain = domain.replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/$/, "");
@@ -114,38 +150,84 @@ export function synthesizeReport(
   const key = Object.keys(PROFILES).find((k) => PROFILES[k] === profile) ?? "ecommerce";
   const palette = pickPalette(brand, key);
 
-  const totalVolume = profile.benchmarks.monthlyVolume;
-  const workflows: Workflow[] = profile.workflows.map((w, i) => ({
-    ...w,
-    rank: i + 1,
-    estMonthlyVolume: Math.round((totalVolume * w.pctVolume) / 100),
-  }));
+  const intel = (brand as Brand & { _intel?: SiteIntelPayload })._intel;
+  const synthesis = intel?.synthesis ?? null;
 
+  // ROI defaults: prefer live synthesis, fallback to static
+  const roiDefaults = synthesis?.roiDefaults
+    ? {
+        monthlyVolume: synthesis.roiDefaults.monthlyVolume || profile.benchmarks.monthlyVolume,
+        ahtMinutes: synthesis.roiDefaults.ahtMinutes || profile.benchmarks.ahtMinutes,
+        costPerAgentMonth: synthesis.roiDefaults.costPerAgentMonth || profile.benchmarks.costPerAgentMonth,
+        aiCostPerResolution: synthesis.roiDefaults.aiCostPerResolution || profile.benchmarks.aiCostPerResolution,
+        deflectionRate: synthesis.roiDefaults.deflectionRate || profile.benchmarks.deflectionRate,
+        agentCapacity: synthesis.roiDefaults.agentCapacity || profile.benchmarks.agentCapacity,
+        fteHour: synthesis.roiDefaults.fteHour || profile.benchmarks.fteHour,
+      }
+    : profile.benchmarks;
+
+  const totalVolume = roiDefaults.monthlyVolume;
+
+  // Workflows: live synthesis preferred
+  const workflows = synthesis
+    ? mergeGeminiWorkflows(synthesis, profile, totalVolume)
+    : profile.workflows.map((w, i) => ({
+        ...w,
+        rank: i + 1,
+        estMonthlyVolume: Math.round((totalVolume * w.pctVolume) / 100),
+      }));
+
+  // Tools: live synthesis preferred
+  const tools = synthesis?.mockTools?.length
+    ? synthesis.mockTools
+    : profile.tools;
+
+  // Complaints/friction: prefer live data
+  const frictionData = intel?.frictionPoints ?? [];
   const complaintWorkflowMap = [1, 2, 3, 1, 5, 4];
-  const complaints: Complaint[] = profile.complaints.map((c, i) => ({
-    ...c,
-    workflowRef: complaintWorkflowMap[i] ?? null,
-  }));
+  const complaints: Complaint[] = frictionData.length > 0
+    ? frictionData.map((f, i) => ({
+        source: f.source,
+        quote: f.quote,
+        theme: f.theme,
+        aiFix: f.aiFix,
+        workflowRef: complaintWorkflowMap[i] ?? null,
+      }))
+    : profile.complaints.map((c, i) => ({
+        ...c,
+        workflowRef: complaintWorkflowMap[i] ?? null,
+      }));
 
-  const policies: PolicyChunk[] = profile.policies.map((p, i) => ({
-    id: `chunk_${String(i + 1).padStart(3, "0")}`,
-    url: `https://${cleanDomain}/help/${slugify(p.topic)}`,
-    topic: p.topic,
-    snippet: p.snippet,
-  }));
+  // Policy chunks: prefer live scraped data
+  const livePolicyChunks = intel?.policyChunks ?? [];
+  const policies: PolicyChunk[] = livePolicyChunks.length > 0
+    ? livePolicyChunks.map((p) => ({
+        id: p.id,
+        url: p.url,
+        topic: p.topic,
+        snippet: p.snippet,
+      }))
+    : profile.policies.map((p, i) => ({
+        id: `chunk_${String(i + 1).padStart(3, "0")}`,
+        url: `https://${cleanDomain}/help/${slugify(p.topic)}`,
+        topic: p.topic,
+        snippet: p.snippet,
+      }));
 
   return {
-    name,
+    name: synthesis?.companyProfile?.name ?? name,
     domain: cleanDomain,
     industryKey: key,
-    industryLabel: industryLabel(key),
+    industryLabel: synthesis?.companyProfile?.industry ?? industryLabel(key),
     channels,
     brand: { logoUrl: brand.logoUrl, tagline: brand.tagline, palette },
     workflows,
     complaints,
     policies,
-    tools: profile.tools,
-    roiDefaults: profile.benchmarks,
+    tools,
+    roiDefaults,
+    isLive: !!synthesis,
+    livePolicyChunks: livePolicyChunks.length > 0 ? livePolicyChunks : undefined,
   };
 }
 

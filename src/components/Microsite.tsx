@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft, ExternalLink, Workflow, MessageSquare, ShieldCheck, BarChart3,
-  ChevronDown, FileJson, Copy, Check,
+  FileJson, Check, Activity, Zap,
 } from "lucide-react";
 import type { Report } from "@/lib/synthesis";
 import MatrixModule from "@/components/modules/MatrixModule";
@@ -9,7 +9,7 @@ import SandboxModule from "@/components/modules/SandboxModule";
 import FrictionModule from "@/components/modules/FrictionModule";
 import RoiModule from "@/components/modules/RoiModule";
 import ShareBar from "@/components/ShareBar";
-import { logEvent } from "@/lib/telemetry";
+import { logEvent, initDwellTracking, subscribeToEvents, type DemoEvent } from "@/lib/telemetry";
 
 interface Props {
   report: Report;
@@ -27,15 +27,47 @@ const TABS: { id: TabId; label: string; icon: typeof Workflow }[] = [
   { id: "roi", label: "ROI Model", icon: BarChart3 },
 ];
 
+const EVENT_LABELS: Record<string, string> = {
+  microsite_opened: "opened the demo",
+  demo_opened: "opened the demo",
+  tab_viewed: "viewed a tab",
+  workflow_clicked: "clicked a workflow",
+  roi_slider_adjusted: "adjusted ROI sliders",
+  sandbox_message: "sent a chat message",
+  voice_call_started: "started a voice call",
+  business_case_exported: "exported the business case",
+  escalation: "triggered human escalation",
+  tool_call: "triggered a tool call",
+  dwell_heartbeat: "is actively viewing",
+};
+
 export default function Microsite({ report, prospectId, isOwnView, onBack }: Props) {
   const [tab, setTab] = useState<TabId>("matrix");
   const [seedQuestion, setSeedQuestion] = useState<string | null>(null);
   const [exported, setExported] = useState(false);
+  const [recentEvents, setRecentEvents] = useState<DemoEvent[]>([]);
   const sandboxRef = useRef<HTMLDivElement>(null);
 
+  // Boot dwell tracking
   useEffect(() => {
     logEvent("demo_opened", { via: isOwnView ? "creator" : "shared_link" });
+    const cleanup = initDwellTracking();
+    return cleanup;
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Log tab changes
+  useEffect(() => {
+    logEvent("tab_viewed", { tab });
+  }, [tab]);
+
+  // Realtime activity feed (shared link view)
+  useEffect(() => {
+    if (!prospectId) return;
+    const unsubscribe = subscribeToEvents(prospectId, (event) => {
+      setRecentEvents((prev) => [event, ...prev].slice(0, 8));
+    });
+    return unsubscribe;
+  }, [prospectId]);
 
   const [primary, dark, light] = useMemo(() => {
     const p = report.brand.palette;
@@ -67,6 +99,7 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
       prospect: { name: report.name, domain: report.domain, industry: report.industryLabel },
       brand: report.brand,
       channels: report.channels,
+      isLive: report.isLive ?? false,
       workflows: report.workflows.map((w) => ({
         rank: w.rank, title: w.title, intent: w.intent, channel: w.channel,
         complexity: w.complexity, est_monthly_volume: w.estMonthlyVolume,
@@ -84,6 +117,7 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
     a.click();
     URL.revokeObjectURL(url);
     setExported(true);
+    logEvent("business_case_exported", { domain: report.domain });
     setTimeout(() => setExported(false), 2000);
   };
 
@@ -100,7 +134,7 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
           {isOwnView && (
             <button
               onClick={onBack}
-              className="flex items-center gap-1.5 text-sm text-neutral-400 transition-colors hover:text-white"
+              className="flex cursor-pointer items-center gap-1.5 text-sm text-neutral-400 transition-colors hover:text-white"
             >
               <ArrowLeft className="h-4 w-4" />
               New demo
@@ -118,6 +152,11 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
             <div className="min-w-0">
               <div className="flex items-center gap-2">
                 <h1 className="truncate text-lg font-bold">{report.name}</h1>
+                {report.isLive && (
+                  <span className="flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-medium text-emerald-400">
+                    <Zap className="h-2.5 w-2.5" /> Live data
+                  </span>
+                )}
                 <a
                   href={`https://${report.domain}`}
                   target="_blank"
@@ -134,7 +173,7 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
           </div>
           <button
             onClick={exportBlueprint}
-            className="flex items-center gap-2 rounded-lg border border-white/15 px-3.5 py-2 text-xs font-medium text-neutral-300 transition-colors hover:border-[var(--brand-light)] hover:text-white"
+            className="flex cursor-pointer items-center gap-2 rounded-lg border border-white/15 px-3.5 py-2 text-xs font-medium text-neutral-300 transition-colors hover:border-[var(--brand-light)] hover:text-white"
           >
             {exported ? <Check className="h-3.5 w-3.5 text-emerald-400" /> : <FileJson className="h-3.5 w-3.5" />}
             {exported ? "Exported" : "Export Blueprint"}
@@ -149,13 +188,40 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
           </div>
         )}
 
+        {/* Live activity feed */}
+        {recentEvents.length > 0 && (
+          <div className="mb-6 overflow-hidden rounded-xl border border-white/10 bg-white/[0.02]">
+            <div className="flex items-center gap-2 border-b border-white/10 px-4 py-2.5">
+              <Activity className="h-3.5 w-3.5 text-[var(--brand-light)]" />
+              <span className="text-xs font-semibold uppercase tracking-widest text-neutral-400">Live activity</span>
+              <span className="ml-auto flex h-1.5 w-1.5 items-center rounded-full bg-emerald-400 animate-pulse" />
+            </div>
+            <div className="flex gap-3 overflow-x-auto px-4 py-3 scrollbar-none">
+              {recentEvents.map((e) => (
+                <div
+                  key={e.id}
+                  className="flex shrink-0 items-center gap-2 rounded-lg border border-white/10 bg-black/30 px-3 py-1.5"
+                >
+                  <span className="h-1.5 w-1.5 rounded-full bg-[var(--brand-primary)]" />
+                  <span className="text-[11px] text-neutral-300">
+                    A viewer {EVENT_LABELS[e.event_type] ?? e.event_type}
+                  </span>
+                  <span className="text-[10px] text-neutral-600">
+                    {new Date(e.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {/* Tabs */}
         <div className="mb-6 flex gap-1 overflow-x-auto rounded-xl border border-white/10 bg-white/[0.03] p-1.5">
           {TABS.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => setTab(id)}
-              className={`flex shrink-0 items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
+              className={`flex shrink-0 cursor-pointer items-center gap-2 rounded-lg px-4 py-2.5 text-sm font-medium transition-all ${
                 tab === id
                   ? "bg-[var(--brand-primary)] text-white shadow-lg"
                   : "text-neutral-400 hover:text-white"
@@ -173,7 +239,7 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
               <div className="mb-4">
                 <h2 className="text-xl font-semibold">Automation Opportunity Matrix</h2>
                 <p className="mt-1 text-sm text-neutral-400">
-                  {report.name}'s top 10 automation workflows, ranked by estimated contact volume — mapped before the first discovery call.
+                  {report.name}'s top 10 automation workflows, ranked by estimated contact volume{report.isLive ? " — synthesized live from real support pages" : " — mapped before the first discovery call"}.
                 </p>
               </div>
               <MatrixModule workflows={report.workflows} channels={report.channels} totalVolume={totalVolume} showVolumes />
@@ -185,7 +251,9 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
               <div className="mb-4">
                 <h2 className="text-xl font-semibold">Live Grounded Sandbox</h2>
                 <p className="mt-1 text-sm text-neutral-400">
-                  A working AI agent on {report.name}'s real policies. Every answer cites its source; try an edge case to see the human-handoff.
+                  {report.isLive
+                    ? `A working AI agent powered by Groq, grounded in ${report.name}'s real support pages. Every answer cites its source.`
+                    : `A working AI agent on ${report.name}'s policies. Every answer cites its source; try an edge case to see the human-handoff.`}
                 </p>
               </div>
               <SandboxModule key={seedQuestion ?? "clean"} report={report} prospectId={prospectId} isOwnView={isOwnView} />
@@ -197,7 +265,9 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
               <div className="mb-4">
                 <h2 className="text-xl font-semibold">External Friction Audit</h2>
                 <p className="mt-1 text-sm text-neutral-400">
-                  What {report.name}'s customers say publicly about support today — and what the AI fix looks like.
+                  {report.isLive
+                    ? `Real complaints about ${report.name}'s support surfaced from public reviews — with AI resolutions.`
+                    : `What ${report.name}'s customers say publicly about support today — and what the AI fix looks like.`}
                 </p>
               </div>
               <FrictionModule complaints={report.complaints} onJumpToSandbox={jumpToSandbox} />
@@ -207,9 +277,11 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
           {tab === "roi" && (
             <section>
               <div className="mb-4">
-                <h2 className="text-xl font-semibold">Deflection ROI Model</h2>
+                <h2 className="text-xl font-semibold">CFO ROI Model</h2>
                 <p className="mt-1 text-sm text-neutral-400">
-                  {report.industryLabel} benchmarks pre-filled. Adjust the sliders to build the CFO-ready case.
+                  {report.isLive
+                    ? `Benchmarks synthesized from ${report.name}'s industry profile. Adjust sliders to build the CFO-ready case.`
+                    : `${report.industryLabel} benchmarks pre-filled. Adjust the sliders to build the CFO-ready case.`}
                 </p>
               </div>
               <RoiModule report={report} />
@@ -220,6 +292,7 @@ export default function Microsite({ report, prospectId, isOwnView, onBack }: Pro
 
       <footer className="border-t border-white/10 py-6 text-center text-xs text-neutral-600">
         Generated by PreFlight AI · grounded in public support pages from {report.domain}
+        {report.isLive && " · powered by Tavily + Gemini + Groq"}
       </footer>
     </div>
   );

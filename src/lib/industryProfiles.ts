@@ -3,7 +3,7 @@ export type Channel = "web" | "whatsapp" | "voice";
 export interface Workflow {
   rank: number;
   title: string;
-  description: string;
+  description?: string;
   intent: string;
   pctVolume: number;
   complexity: "RAG-Only" | "API Tool-Call";
