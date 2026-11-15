@@ -28,6 +28,7 @@ const FEATURES = [
 
 export default function Landing({ onStart, recent, onOpenRecent, busy }: Props) {
   const [domain, setDomain] = useState("");
+  const [domainError, setDomainError] = useState("");
   const [selected, setSelected] = useState<Channel[]>(["web", "whatsapp", "voice"]);
 
   const toggle = (c: Channel) =>
@@ -36,7 +37,12 @@ export default function Landing({ onStart, recent, onOpenRecent, busy }: Props) 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleaned = domain.trim().replace(/^https?:\/\//, "").replace(/^www\./, "").split("/")[0];
-    if (!cleaned || !cleaned.includes(".") || selected.length === 0) return;
+    if (domain.trim() && !cleaned.includes(".")) {
+      setDomainError("input a valid url");
+      return;
+    }
+    if (!cleaned || selected.length === 0) return;
+    setDomainError("");
     onStart(cleaned, selected);
   };
 
@@ -104,7 +110,10 @@ export default function Landing({ onStart, recent, onOpenRecent, busy }: Props) 
                 id="domain"
                 type="text"
                 value={domain}
-                onChange={(e) => setDomain(e.target.value)}
+                onChange={(e) => {
+                  setDomain(e.target.value);
+                  setDomainError("");
+                }}
                 placeholder="noon.com, aramex.com, emiratesnbd.com…"
                 className="h-12 w-full rounded-xl border border-white/10 bg-neutral-950 pl-12 pr-4 text-white placeholder:text-neutral-600 focus:border-amber-500/60 focus:outline-none focus:ring-2 focus:ring-amber-500/20"
               />
@@ -114,6 +123,7 @@ export default function Landing({ onStart, recent, onOpenRecent, busy }: Props) 
               {!busy && <ArrowRight className="h-4 w-4" />}
             </Button>
           </div>
+          {domainError && <p className="mt-2 text-sm text-red-400" role="alert">{domainError}</p>}
 
           <div className="mt-5">
             <span className="mb-2 block text-sm font-medium text-neutral-300">Target channels</span>
